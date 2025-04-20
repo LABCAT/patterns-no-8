@@ -6,99 +6,76 @@ uniform float uTime;       // Time in seconds
 
 #define PI 3.14159265359
 
-// Bamboo stalk function
-float bambooStalk(vec2 uv, vec2 pos, float width, float height) {
-  float distX = abs(uv.x - pos.x);
-  float stalk = smoothstep(width, width - 0.01, distX) * smoothstep(height, 0.0, uv.y - pos.y);
-  
-  // Add bamboo segments/nodes
-  float segmentCount = 8.0;
-  float segmentHeight = height / segmentCount;
-  
-  const int MAX_SEGMENTS = 10;  // Set a constant maximum
-    for (int i = 0; i < MAX_SEGMENTS; i++) {
-        if(float(i) >= segmentCount) break;  // Early exit if we reach our desired count
-        float nodeY = pos.y + float(i) * segmentHeight;
-        float node = smoothstep(0.02, 0.0, abs(uv.y - nodeY)) * smoothstep(width * 1.5, width * 1.5 - 0.01, distX);
-        stalk += node * 0.5;
-    }
-  
-  return stalk;
-}
-
-// Bird shape function
-float bird(vec2 uv, vec2 pos, float size, float wing) {
-  // Transform coordinates relative to bird position
-  vec2 birdUV = (uv - pos) / size;
-  
-  // Bird body (oval shape)
-  float body = smoothstep(0.15, 0.14, length(birdUV * vec2(1.0, 1.5)));
-  
-  // Bird head
-  float head = smoothstep(0.12, 0.11, length(birdUV - vec2(0.15, 0.0)));
-  
-  // Bird tail
-  float tail = smoothstep(0.15, 0.14, length((birdUV - vec2(-0.25, 0.0)) * vec2(1.5, 0.7)));
-  
-  // Bird wings - animated
-  float wingFlap = sin(uTime * 2.0 + wing) * 0.5 + 0.5;
-  float leftWing = smoothstep(0.15, 0.14, length((birdUV - vec2(0.0, 0.15 + wingFlap * 0.1)) * vec2(0.7, 1.2)));
-  float rightWing = smoothstep(0.15, 0.14, length((birdUV - vec2(0.0, -0.15 - wingFlap * 0.1)) * vec2(0.7, 1.2)));
-  
-  return body + head + tail + leftWing + rightWing;
-}
-
-// Color palette for jungle/bamboo
-vec3 jungleGradient(float t) {
-  // DMT-inspired jungle palette
+// Color palette for spiral
+vec3 psychedelicGradient(float t) {
+  // DMT-inspired psychedelic palette
+  vec3 magenta = vec3(1.0, 0.0, 1.0);     // Magenta
+  vec3 cyan = vec3(0.0, 1.0, 1.0);        // Cyan
+  vec3 gold = vec3(1.0, 0.9, 0.2);        // Golden
+  vec3 purple = vec3(0.6, 0.0, 0.8);      // Purple
   vec3 emerald = vec3(0.0, 0.8, 0.4);     // Emerald green
-  vec3 jade = vec3(0.0, 0.6, 0.3);        // Jade green
-  vec3 gold = vec3(1.0, 0.9, 0.2);        // Golden highlights
-  vec3 skyblue = vec3(0.4, 0.7, 1.0);     // Sky blue
   
   // Time modulators for "breathing" effect
-  float mod1 = 0.1 * sin(uTime * 0.3);
-  float mod2 = 0.1 * cos(uTime * 0.24);
+  float mod1 = 0.2 * sin(uTime * 0.3);
+  float mod2 = 0.2 * cos(uTime * 0.24);
   
-  jade += vec3(mod1, mod2, 0.0);
-  emerald += vec3(0.0, mod1, mod2);
+  magenta += vec3(mod1, 0.0, mod2);
+  cyan += vec3(0.0, mod1, mod2);
   
-  if(t < 0.33) return mix(jade, emerald, t * 3.0);
-  else if(t < 0.66) return mix(emerald, skyblue, (t - 0.33) * 3.0);
-  else return mix(skyblue, gold, (t - 0.66) * 3.0);
+  // Cycle through colors
+  t = fract(t + uTime * 0.1);
+  
+  if(t < 0.2) return mix(magenta, cyan, t * 5.0);
+  else if(t < 0.4) return mix(cyan, gold, (t - 0.2) * 5.0);
+  else if(t < 0.6) return mix(gold, purple, (t - 0.4) * 5.0);
+  else if(t < 0.8) return mix(purple, emerald, (t - 0.6) * 5.0);
+  else return mix(emerald, magenta, (t - 0.8) * 5.0);
 }
 
-// Color palette for birds
-vec3 birdGradient(float t, float seed) {
-  // DMT-inspired impossible bird colors
-  vec3 magenta = vec3(1.0, 0.0, 1.0);    // Magenta
-  vec3 cyan = vec3(0.0, 1.0, 1.0);       // Cyan
-  vec3 golden = vec3(1.0, 0.8, 0.0);     // Golden
-  vec3 purple = vec3(0.6, 0.0, 0.8);     // Purple
+// Spiral pattern function
+float spiral(vec2 uv, float thickness, float frequency, float phase) {
+  float r = length(uv);
+  float theta = atan(uv.y, uv.x);
   
-  // Add time-based modulation for color cycling
-  float phase = seed + uTime * 0.2;
-  t = fract(t + phase);
+  // Create spiral pattern
+  float spiral = sin(theta * frequency + r * 10.0 - phase);
   
-  // Create a cycling palette
-  if(t < 0.25) return mix(magenta, cyan, t * 4.0);
-  else if(t < 0.5) return mix(cyan, golden, (t - 0.25) * 4.0);
-  else if(t < 0.75) return mix(golden, purple, (t - 0.5) * 4.0);
-  else return mix(purple, magenta, (t - 0.75) * 4.0);
+  // Create bands with smooth edges
+  return smoothstep(-thickness, thickness, spiral);
 }
 
-// Helper function for rotation
-vec2 rotate(vec2 uv, float angle) {
-  return vec2(
-    uv.x * cos(angle) - uv.y * sin(angle),
-    uv.x * sin(angle) + uv.y * cos(angle)
-  );
-}
-
-// Light ray effect
-float lightRay(vec2 uv, float angle, float width) {
-  float ray = smoothstep(width, 0.0, abs(mod(atan(uv.y, uv.x) + PI + angle, 2.0 * PI) - PI));
-  return ray * smoothstep(1.0, 0.2, length(uv));
+// Fractal noise for organic movement
+float fbm(vec2 p) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  float frequency = 1.0;
+  
+  // Unroll loop to avoid non-constant iteration count
+  // First octave
+  value += amplitude * (
+    sin(p.x * frequency) * sin(p.y * frequency) +
+    cos(p.x * frequency * 1.1) * cos(p.y * frequency * 1.1)
+  ) * 0.5 + 0.5;
+  
+  frequency *= 2.0;
+  amplitude *= 0.5;
+  
+  // Second octave
+  value += amplitude * (
+    sin(p.x * frequency) * sin(p.y * frequency) +
+    cos(p.x * frequency * 1.1) * cos(p.y * frequency * 1.1)
+  ) * 0.5 + 0.5;
+  
+  frequency *= 2.0;
+  amplitude *= 0.5;
+  
+  // Third octave
+  value += amplitude * (
+    sin(p.x * frequency) * sin(p.y * frequency) +
+    cos(p.x * frequency * 1.1) * cos(p.y * frequency * 1.1)
+  ) * 0.5 + 0.5;
+  
+  return value;
 }
 
 void main() {
@@ -107,111 +84,104 @@ void main() {
   
   // Adjust for aspect ratio
   uv.x *= uResolution.x / uResolution.y;
+
+  uv = uv * 0.55;
   
-  // Add slight distortion for wavy/breathing effect
-  uv += vec2(
-    sin(uv.y * 4.0 + uTime * 0.5) * 0.02,
-    cos(uv.x * 4.0 + uTime * 0.4) * 0.02
+  // Create multiple layers of distortion for more complexity
+  vec2 distortedUV = uv;
+  
+  // Add time-based rotation to the entire scene
+  float rotationSpeed = uTime * 0.1;
+  mat2 rotation = mat2(
+    cos(rotationSpeed), -sin(rotationSpeed),
+    sin(rotationSpeed), cos(rotationSpeed)
+  );
+  distortedUV = rotation * distortedUV;
+  
+  // Add pulsing zoom effect
+  float zoom = sin(uTime * 0.2) * 0.1 + 0.9;
+  distortedUV /= zoom;
+  
+  // Add fractal distortion
+  vec2 fbmOffset = vec2(
+    fbm(distortedUV + vec2(uTime * 0.1, 0.0)),
+    fbm(distortedUV + vec2(0.0, uTime * 0.12))
   );
   
+  distortedUV += fbmOffset * 0.2;
+  
   // Get polar coordinates
-  float r = length(uv);
-  float theta = atan(uv.y, uv.x);
+  float r = length(distortedUV);
+  float theta = atan(distortedUV.y, distortedUV.x);
   
   // Initialize color
   vec3 color = vec3(0.0);
   
-  // Create background forest gradient
-  vec3 bgColor = jungleGradient(r * 0.7 + sin(uTime * 0.1) * 0.1);
-  
-  // Add light rays coming through bamboo
-  const int RAYS = 5;
-  for (int i = 0; i < RAYS; i++) {
-    float rayAngle = float(i) * PI / float(RAYS) + uTime * 0.1;
-    float rayWidth = 0.05 + 0.03 * sin(uTime * 0.2 + float(i));
-    float ray = lightRay(uv, rayAngle, rayWidth);
-    color += vec3(1.0, 0.9, 0.7) * ray * 0.15;
+  // Create multiple spiral layers with different frequencies and phases
+  const int SPIRAL_LAYERS = 5;
+  for (int i = 0; i < SPIRAL_LAYERS; i++) {
+    float layerSeed = float(i) * 0.61803; // Golden ratio for variety
+    float frequency = 3.0 + layerSeed * 5.0;
+    float phase = uTime * (0.5 + layerSeed * 0.5);
+    float thickness = 0.1 + 0.1 * sin(uTime * 0.3 + layerSeed);
+    
+    // Create spiral pattern
+    float spiralPattern = spiral(distortedUV, thickness, frequency, phase);
+    
+    // Apply color based on distance and angle
+    float colorIndex = fract(r + theta / (2.0 * PI) + layerSeed + uTime * 0.05);
+    vec3 spiralColor = psychedelicGradient(colorIndex);
+    
+    // Add to final color
+    color += spiralColor * spiralPattern * (0.3 - float(i) * 0.05);
   }
   
-  // Add color from the background
-  color += bgColor * 0.5;
-  
-  // Create multiple bamboo stalks
-  const int BAMBOO_COUNT = 8;
-  for (int i = 0; i < BAMBOO_COUNT; i++) {
-    // Distribute bamboo across the x-axis with some randomness
-    float xPos = mix(-1.3, 1.3, fract(float(i) / float(BAMBOO_COUNT) + sin(float(i) * 0.74) * 0.2));
-    // Vary height and width slightly
-    float bambooHeight = 2.0 + sin(float(i) * 0.9) * 0.2;
-    float bambooWidth = 0.03 + sin(float(i) * 1.2) * 0.01;
+  // Add a second set of counter-rotating spirals
+  vec2 reverseUV = vec2(-distortedUV.y, distortedUV.x); // 90-degree rotation
+  for (int i = 0; i < 3; i++) {
+    float layerSeed = float(i) * 0.7548;
+    float frequency = 2.0 + layerSeed * 3.0;
+    float phase = -uTime * (0.3 + layerSeed * 0.4);
+    float thickness = 0.05 + 0.05 * cos(uTime * 0.4 + layerSeed);
     
-    float stalk = bambooStalk(uv, vec2(xPos, -1.0), bambooWidth, bambooHeight);
+    float spiralPattern = spiral(reverseUV, thickness, frequency, phase);
+    float colorIndex = fract(r - theta / (2.0 * PI) + layerSeed + uTime * 0.07);
+    vec3 spiralColor = psychedelicGradient(1.0 - colorIndex);
     
-    // Adjust bamboo color based on position (depth illusion)
-    float depthFactor = 0.5 + 0.5 * sin(float(i) * 0.7);
-    vec3 bambooColor = jungleGradient(depthFactor);
-    bambooColor *= 0.7 + 0.3 * sin(uv.y * 5.0 + uTime * 0.2); // Add subtle variation
-    
-    color += bambooColor * stalk;
+    color += spiralColor * spiralPattern * 0.2;
   }
   
-  // Add ethereal birds flying around
-  const int BIRD_COUNT = 6;
-  for (int i = 0; i < BIRD_COUNT; i++) {
-    // Create a unique seed for this bird
-    float seed = float(i) * 0.123;
-    
-    // Create bird path - a figure-8 or circular path
-    float birdTime = uTime * (0.2 + seed * 0.1);
-    float birdX = sin(birdTime + seed * 10.0) * 0.5;
-    float birdY = sin(birdTime * 2.0 + seed * 5.0) * 0.3;
-    
-    // Adjust size and wing phase based on bird index
-    float birdSize = 0.05 + seed * 0.05;
-    float wingPhase = seed * 10.0;
-    
-    // Create the bird
-    float birdShape = bird(uv, vec2(birdX, birdY), birdSize, wingPhase);
-    
-    // Get bird color - vivid and shifting
-    vec3 birdColor = birdGradient(float(i) / float(BIRD_COUNT), seed);
-    
-    // Add glow around the bird
-    float birdGlow = smoothstep(birdSize * 3.0, birdSize, length(uv - vec2(birdX, birdY))) * 0.5;
-    
-    // Add the bird to the scene
-    color += birdColor * (birdShape + birdGlow);
-  }
+  // Add pulsing center
+  float centerPulse = sin(uTime * 1.5) * 0.5 + 0.5;
+  float centerGlow = smoothstep(0.3 + centerPulse * 0.2, 0.0, r);
+  color += psychedelicGradient(uTime * 0.1) * centerGlow;
   
-  // Add misty atmosphere and particles
-  float mist = sin(uv.x * 5.0 + uTime * 0.2) * sin(uv.y * 4.0 - uTime * 0.3) * 0.5 + 0.5;
-  mist *= smoothstep(0.0, 0.5, r) * smoothstep(1.0, 0.7, r);
-  color += jungleGradient(mist) * mist * 0.2;
-  
-  // Add floating particles/spores
-  const int PARTICLES = 20;
+  // Add floating particles that follow the spiral
+  const int PARTICLES = 15;
   for (int i = 0; i < PARTICLES; i++) {
     float particleSeed = float(i) * 0.043;
-    float particleTime = uTime * (0.1 + particleSeed * 0.1);
+    float particleTime = uTime * (0.2 + particleSeed * 0.2);
     
     // Spiral movement pattern
-    float angle = particleTime + particleSeed * 10.0;
-    float radius = 0.1 + particleSeed + 0.05 * sin(particleTime * 2.0);
+    float angle = particleTime * 2.0 + particleSeed * 10.0;
+    float radius = particleSeed * 0.8 + 0.1 * sin(particleTime * 3.0);
+    radius *= (sin(particleTime * 0.5) * 0.3 + 0.7); // Pulsing radius
+    
     vec2 particlePos = vec2(
-      sin(angle) * radius * 1.5,
-      cos(angle) * radius + sin(particleTime) * 0.2
+      sin(angle) * radius,
+      cos(angle) * radius
     );
     
-    // Create particle
-    float particle = smoothstep(0.01, 0.0, length(uv - particlePos));
+    // Create glowing particle
+    float particle = smoothstep(0.03 + sin(particleTime * 2.0) * 0.01, 0.0, length(distortedUV - particlePos));
     
     // Add to scene with color
-    color += birdGradient(particleSeed, particleSeed) * particle;
+    color += psychedelicGradient(particleSeed + uTime * 0.1) * particle * 0.7;
   }
   
   // Add subtle vignette
-  float vignette = smoothstep(1.2, 0.5, r);
-  color *= vignette * 1.2;
+  float vignette = smoothstep(1.5, 0.5, r);
+  color *= vignette * 1.3;
   
   // Add bloom/glow
   color = pow(color, vec3(0.8));
