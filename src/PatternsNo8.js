@@ -12,7 +12,7 @@ const fragShader6 = new URL("@shaders/pattern6.frag", import.meta.url).href;
 const fragShader7 = new URL("@shaders/pattern7.frag", import.meta.url).href;
 const fragShader8 = new URL("@shaders/pattern8.frag", import.meta.url).href;
 
-const AudioSketchTemplate = (p) => {
+const PatternsNo8 = (p) => {
     // Core audio properties
     p.song = null;
     p.audioLoaded = false;
@@ -20,7 +20,9 @@ const AudioSketchTemplate = (p) => {
    
     // Shader variables
     p.shaders = [];
-    p.currentShaderIndex = 0;
+    p.currentShaderIndex = null;
+    p.graphicsBuffers = [];
+    p.currentBuffer = null;
    
     p.preload = () => {
         // Load multiple shaders
@@ -41,21 +43,32 @@ const AudioSketchTemplate = (p) => {
     p.setup = () => {
         // Create WEBGL canvas for shader support
         p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+
+        for (let i = 0; i < p.shaders.length; i++) {
+            const g = p.createGraphics(p.width, p.height, p.WEBGL);
+            const shader = p.shaders[i].copyToContext(g);
+            g.shader(shader);
+            shader.setUniform('uResolution', [p.width, p.height]);
+            shader.setUniform('uTime', p.random(12, 48)); 
+            g.rect(0, 0, p.width, p.height);
+            p.graphicsBuffers.push(g);
+        }
     };
     
     p.draw = () => {
         p.background(0, 0, 0);
 
-        if((p.audioLoaded && p.song.isPlaying()) || p.songHasFinished){
-            // Set the active shader
-            p.shader(p.shaders[p.currentShaderIndex]);
-        
-            p.shaders[p.currentShaderIndex].setUniform('uResolution', [p.width, p.height]);
-            p.shaders[p.currentShaderIndex].setUniform('uTime', p.millis() / 2000.0);
-            // Draw a rectangle that covers the entire canvas
-            p.rect(0, 0, p.width, p.height);
-            // Pass time uniform to the shader
-            
+        if ((p.audioLoaded && p.song.isPlaying()) || p.songHasFinished) {
+            if (Number.isInteger(p.currentShaderIndex)) {
+                const s = p.shaders[p.currentShaderIndex];
+                p.shader(s);
+                s.setUniform('uResolution', [p.width, p.height]);
+                s.setUniform('uTime', p.millis() / 2000.0);
+                p.rect(0, 0, p.width, p.height);
+            } else if (p.currentBuffer) {
+                p.resetShader();
+                p.image(p.currentBuffer, -p.width / 2, -p.height / 2);
+            }
         }
     }
     
@@ -63,8 +76,10 @@ const AudioSketchTemplate = (p) => {
     p.loadMidi = () => {
         Midi.fromUrl(midi).then((result) => {
             console.log('MIDI loaded:', result);
-            const track1 = result.tracks[11].notes; // Waves Layer Editon - Harpi Synth
-            p.scheduleCueSet(track1, 'executeTrack1');
+            // const track1 = result.tracks[12].notes; // Chorus Reece Bass
+            // p.scheduleCueSet(track1, 'executeTrack1');
+            const track2 = result.tracks[17].notes; // Waves Layers Edition - HarpiSynth
+            p.scheduleCueSet(track2, 'executeTrack1');
             document.getElementById("loader").classList.add("loading--complete");
             document.getElementById('play-icon').classList.add('fade-in');
             p.audioLoaded = true;
@@ -87,19 +102,21 @@ const AudioSketchTemplate = (p) => {
     }
     
     p.executeTrack1 = (note) => {
-        console.log(note);
+        console.log(note.midi);
         
         // Check if the note value is 84 or 89
         if (note.midi === 84 || note.midi === 89) {
-            p.currentShaderIndex = 4;
+            p.currentShaderIndex = null;
+            p.currentBuffer = p.random([p.graphicsBuffers[4], p.graphicsBuffers[7]]);
         } 
         else {
+            p.currentBuffer = null;
             // If this is first note of 8-note sequence, create a new pattern set
             if (note.currentCue % 8 === 1) {
                 // Create array of patterns excluding index 4
                 p.patternSet = [];
                 for (let i = 0; i < p.shaders.length; i++) {
-                    if (![4].includes(i)) {
+                    if (![4, 7].includes(i)) {
                         p.patternSet.push(i);
                     }
                 }
@@ -134,4 +151,4 @@ const AudioSketchTemplate = (p) => {
     }
 };
 
-export default AudioSketchTemplate;
+export default PatternsNo8;

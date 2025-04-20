@@ -1,5 +1,5 @@
 export default {
-  title: "Vite P5 Sound and MIDI Starter Kit",
-  gtmId: "", 
+  title: "Patterns No. 8",
+  gtmId: "GTM-KJ52WKS", 
   favicon: "https://labcat.nz/favicon.ico"
 }
