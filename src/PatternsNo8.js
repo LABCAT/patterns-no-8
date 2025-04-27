@@ -34,14 +34,17 @@ const PatternsNo8 = (p) => {
         p.song = await p.loadSound(audio, async () => {
             await p.loadMidi();
             p.audioLoaded = true;
-            p.song.onended(() => p.songHasFinished = true);
+            p.song.onended(() => {
+                p.songHasFinished = true;
+                document.getElementById('play-icon').classList.add('fade-in'); 
+            });
         });
     };
 
     p.setup = () => {
         p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
 
-        p.shaders.slice(0, -1).forEach((s) => {
+        p.shaders.forEach((s) => {
             p.shader(s);
             s.setUniform('uResolution', [p.width, p.height]);
             s.setUniform('uTime', 0);
@@ -59,14 +62,19 @@ const PatternsNo8 = (p) => {
             }
 
             if (Number.isInteger(p.currentShaderIndex)) {
+                let timeAdjusted = p.time;
+                if (p.currentShaderIndex === 3 || p.currentShaderIndex === 5) {
+                    timeAdjusted = p.time % 30; 
+                } else if (p.currentShaderIndex === 6) {
+                    timeAdjusted = p.time + 60; 
+                } else if (p.currentShaderIndex === 2) {
+                    timeAdjusted = p.time % 30 > 30 ? p.time + 30 : p.time + 60; 
+                }
                 const s = p.shaders[p.currentShaderIndex];
                 p.shader(s);
                 s.setUniform('uResolution', [p.width, p.height]);
-                s.setUniform('uTime', p.time / 1.5);
+                s.setUniform('uTime', timeAdjusted / 1.5);
                 p.rect(0, 0, p.width, p.height);
-            } else if (p.staticBuffer) {
-                p.resetShader();
-                p.image(p.staticBuffer, -p.width / 2, -p.height / 2);
             }
         }
     };
@@ -99,34 +107,42 @@ const PatternsNo8 = (p) => {
 
     p.executeTrack1 = (note) => {
         const { currentCue, midi } = note;
-
         if (midi === 84 || midi === 89) {
-            p.currentShaderIndex = null;
-            const g = p.staticBuffer ? p.staticBuffer : p.createGraphics(p.width, p.height, p.WEBGL);
-            const shader = p.shaders[7];
-            g.shader(shader);
-            shader.setUniform('uResolution', [p.width, p.height]);
-            shader.setUniform('uTime', p.random(12, 48));
-            g.rect(0, 0, p.width, p.height);
-            p.staticBuffer = g;
+            p.currentShaderIndex = 7;
         } else {
-            p.currentShaderIndex = null;
-
             if (currentCue % 8 === 1) {
-                p.patternSet = [];
-                for (let i = 0; i < p.shaders.length; i++) {
-                    if (i !== 7) {
-                        p.patternSet.push(i);
-                    }
-                }
-                p.patternSet = p.shuffle(p.patternSet);
-                p.patternSetIndex = 0;
+                p.resetPatternSet();
             } else {
                 p.patternSetIndex++;
             }
 
             p.currentShaderIndex = p.patternSet[p.patternSetIndex];
+            p.lastPattern = p.currentShaderIndex;
+            
         }
+    };
+
+    p.lastPattern = 7;
+
+    /**
+     * Resets the pattern set with shuffled shader indices, excluding shader 7.
+     * Ensures the first pattern in the new set is different from the last pattern in the previous set.
+     */
+    p.resetPatternSet = () => {
+        p.patternSet = [];
+        for (let i = 0; i < p.shaders.length; i++) {
+            if (i !== 7) {
+                p.patternSet.push(i);
+            }
+        }
+        
+        p.patternSet = p.shuffle(p.patternSet);
+
+        if (p.patternSet[0] === p.lastPattern) {
+            p.patternSet = p.shuffle(p.patternSet);
+        }
+        
+        p.patternSetIndex = 0;
     };
 
     p.mousePressed = () => {
@@ -135,7 +151,8 @@ const PatternsNo8 = (p) => {
                 p.song.pause();
             } else {
                 if (parseInt(p.song.currentTime()) >= parseInt(p.song.buffer.duration)) {
-                    p.currentShaderIndex = 0;
+                    p.resetPatternSet();
+                    p.currentShaderIndex = p.patternSet[p.patternSetIndex];
                 }
                 document.getElementById("play-icon").classList.remove("fade-in");
                 p.song.play();
