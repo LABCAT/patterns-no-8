@@ -68,7 +68,7 @@ const PatternsNo8 = (p) => {
                 } else if (p.currentShaderIndex === 6) {
                     timeAdjusted = p.time + 60; 
                 } else if (p.currentShaderIndex === 2) {
-                    timeAdjusted = p.time % 30 > 30 ? p.time + 30 : p.time + 60; 
+                    timeAdjusted = p.time % 30 > 30 ? p.time + 90 : p.time + 60; 
                 }
                 const s = p.shaders[p.currentShaderIndex];
                 p.shader(s);
